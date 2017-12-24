@@ -1,0 +1,129 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | foam-extend: Open Source CFD                    |
+|  \\    /   O peration     | Version:     3.2                                |
+|   \\  /    A nd           | Web:         http://www.foam-extend.org         |
+|    \\/     M anipulation  | For copyright notice see file Copyright         |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      fvSolution;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+solvers
+{
+    pcorr
+    {
+        solver           PCG;
+        preconditioner   DIC;
+
+        minIter          1;
+        maxIter          1000;
+        tolerance        1e-08;
+        relTol           0.01;
+    }
+
+    pd
+    {
+        solver           BiCGStab;
+        preconditioner   DILU;
+
+//         solver           PCG;
+//         preconditioner   DIC;
+
+        minIter          0;
+        maxIter          1000;
+        tolerance        1e-07;
+        relTol           0.01;
+    }
+    pdFinal
+    {
+        solver           BiCGStab;
+        preconditioner   DILU;
+
+//         solver           PCG;
+//         preconditioner   DIC;
+
+        minIter          0;
+        maxIter          1000;
+        tolerance        1e-07;
+        relTol           0.01;
+    }
+    p
+    {
+        solver           BiCGStab;
+        preconditioner   DILU;
+
+//         solver           PCG;
+//         preconditioner   DIC;
+
+        minIter          0;
+        maxIter          1000;
+        tolerance        1e-07;
+        relTol           0.01;
+    }
+
+    U
+    {
+        solver           BiCGStab;
+        preconditioner   DILU;
+
+        minIter          0;
+        maxIter          1000;
+        tolerance        1e-07;
+        relTol           0.01;
+    }
+
+    alpha1
+    {
+        solver           BiCGStab;
+        preconditioner   DILU;
+
+        minIter          0;
+        maxIter          100;
+        tolerance        1e-8;
+        relTol           0;
+    }
+}
+
+PISO
+{
+    cAlpha          1;
+}
+
+// potentialOversetFoam
+SIMPLE
+{
+    nNonOrthogonalCorrectors 0;
+    pRefPoint      (1.9 1.9 0.9);
+    pRefValue      0;
+}
+
+PIMPLE
+{
+    nOuterCorrectors 2;
+    nCorrectors     6;
+    nNonOrthogonalCorrectors 0;
+
+    pdRefPoint      (1.9 1.9 0.9);
+    pdRefValue      0;
+
+    pRefPoint      (1.9 1.9 0.9);
+    pRefValue      0;
+
+    limitMagU      30;
+}
+
+relaxationFactors
+{
+    U          0.8;
+    alpha1     0.8;
+    pd         0.7;
+}
+
+
+// ************************************************************************* //
