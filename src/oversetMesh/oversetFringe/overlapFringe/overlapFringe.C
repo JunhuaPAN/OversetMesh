@@ -31,6 +31,7 @@ License
 #include "processorFvPatchFields.H"
 #include "oversetFvPatchFields.H"
 #include "typeInfo.H"
+#include "cellSet.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -248,7 +249,7 @@ void Foam::overlapFringe::calcAddressing() const
     // Transfer the acceptor list and allocate empty fringeHoles list, which
     // may be populated in updateIteration member function
     acceptorsPtr_ = new labelList(candidateAcceptors.xfer());
-    fringeHolesPtr_ = new labelList();
+    fringeHolesPtr_ = new labelList(cutHoles);
 }
 
 
@@ -825,6 +826,21 @@ const Foam::labelList& Foam::overlapFringe::fringeHoles() const
         calcAddressing();
     }
 
+    // Debug, write fringe holes as a cell set
+    if (oversetMesh::debug())
+    {
+        Pout<< "Writing processor fringe holes into a cell set." << endl;
+
+        cellSet holesSet
+        (
+            mesh(),
+            "fringeHolesProc" + Pstream::myProcNo() + region().name(),
+            labelHashSet(*fringeHolesPtr_)
+        );
+
+        holesSet.write();
+    }
+
     return *fringeHolesPtr_;
 }
 
@@ -834,6 +850,21 @@ const Foam::labelList& Foam::overlapFringe::candidateAcceptors() const
     if (!acceptorsPtr_)
     {
         calcAddressing();
+    }
+
+    // Debug, write candidate acceptors as a cell set
+    if (oversetMesh::debug())
+    {
+        Pout<< "Writing processor candidate acceptors into a cell set." << endl;
+
+        cellSet candidateAcceptorsSet
+        (
+            mesh(),
+            "candidateAcceptorsProc" + Pstream::myProcNo() + region().name(),
+            labelHashSet(*acceptorsPtr_)
+        );
+
+        candidateAcceptorsSet.write();
     }
 
     return *acceptorsPtr_;

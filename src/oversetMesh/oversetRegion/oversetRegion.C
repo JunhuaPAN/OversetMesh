@@ -32,16 +32,6 @@ License
 #include "cellSet.H"
 #include "demandDrivenData.H"
 
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
-const Foam::debug::optimisationSwitch
-Foam::oversetRegion::donorFraction
-(
-    "donorFraction",
-    30
-);
-
-
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 void Foam::oversetRegion::calcDonorRegions() const
@@ -188,6 +178,9 @@ void Foam::oversetRegion::calcDonorAcceptorCells() const
         {
             // Get current region
             const oversetRegion& curRegion = regions[orI];
+
+            Info<< "Updating iteration for overset region: "
+                << curRegion.name() << endl;
 
             // Update donor/acceptors for this region.
             // Note: updateDonorAcceptors() returns a bool indicating whether
@@ -787,7 +780,17 @@ void Foam::oversetRegion::calcProcBoundBoxes() const
     // Loop through overset regions and populate the list
     forAll (regions, orI)
     {
-        localBoundBoxes[orI] = regions[orI].localBounds();
+        if (useLocalBoundBoxes_)
+        {
+            // Use local bounds to optimise sending of acceptors
+            localBoundBoxes[orI] = regions[orI].localBounds();
+        }
+        else
+        {
+            // Use global bounds to make sure we find donors to all acceptors,
+            // even if the bounding boxes of certain regions do not overlap
+            localBoundBoxes[orI] = this->globalBounds();
+        }
     }
 
     // Now that each processor has filled in its own part, combine the data
@@ -989,9 +992,9 @@ bool Foam::oversetRegion::updateDonorAcceptors() const
                     // processor
                     ++numberOfLocalAcceptorsToProcs[procI];
                 }
-            } // End for all processors
+            } // End for all local acceptors
         } // End for all donor regions
-    } // End for all acceptors
+    } // End for all processors
 
     // STAGE 3: Count number of points I'm receiving from all other
     // processors
@@ -1277,7 +1280,7 @@ bool Foam::oversetRegion::updateDonorAcceptors() const
     );
 
     // Distribute donor/acceptor pairs, for initial N acceptors I have sent
-    // accross certain processors, I will receive M donor/acceptor pairs,
+    // across certain processors, I will receive M donor/acceptor pairs,
     // where M >= N.
     donorDistribution.distribute(receivedAcceptorDonorList);
 
@@ -1380,10 +1383,26 @@ bool Foam::oversetRegion::updateDonorAcceptors() const
 
         if (!allVisited)
         {
-            FatalErrorIn("void oversetRegion::updateDonorAcceptors() const")
-                << "Did not visit all acceptors when recombining data..." << nl
-                << "Something went wrong."
-                << abort(FatalError);
+            if (!useLocalBoundBoxes_)
+            {
+                FatalErrorIn("void oversetRegion::updateDonorAcceptors() const")
+                    << "Did not visit all acceptors when recombining data..."
+                    << nl
+                    << "... and we did not use local processor bounding boxes."
+                    << nl
+                    << "Something went wrong."
+                    << abort(FatalError);
+            }
+            else
+            {
+                FatalErrorIn("void oversetRegion::updateDonorAcceptors() const")
+                    << "Did not visit all acceptors when recombining data..."
+                    << nl
+                    << "Try switching off useLocalBoundingBoxes for all regions"
+                    << nl
+                    << "(this optimisation is switched on by default)."
+                    << abort(FatalError);
+            }
         }
     }
 
@@ -1612,7 +1631,15 @@ Foam::oversetRegion::oversetRegion
     localBoundsPtr_(NULL),
     globalBoundsPtr_(NULL),
     cellSearchPtr_(NULL),
-    procBoundBoxesPtr_(NULL)
+    procBoundBoxesPtr_(NULL),
+    useLocalBoundBoxes_
+    (
+        dict.lookupOrDefault<Switch>
+        (
+            "useLocalBoundBoxes",
+            false
+        )
+    )
 {
     // Check zone index
     if (zoneIndex_ < 0)
