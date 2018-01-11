@@ -446,20 +446,37 @@ bool Foam::overlapFringe::updateIteration
     // Create a list containing unsuitable donors
     donorAcceptorDynamicList unsuitableDAPairs(donorAcceptorRegionData.size());
 
+    // Flag to additionally control the iterative process if we have invalid
+    // donors for any number of acceptor. The iterative process continues until
+    // there are no invalid donors
+    bool invalidDonorFound = false;
+
     // Loop through donor/acceptor pairs and perform mark-up
     forAll (donorAcceptorRegionData, daPairI)
     {
-        if
+        // Get current donor/acceptor pair
+        const donorAcceptor& curDA = donorAcceptorRegionData[daPairI];
+
+        if (!curDA.donorFound())
+        {
+            // Donor has not been found for this acceptor, set the flag to
+            // true and append to unsuitable donor/acceptor pairs
+            invalidDonorFound = true;
+            unsuitableDAPairs.append(curDA);
+        }
+        else if
         (
             donorSuitability_->isDonorSuitable(donorAcceptorRegionData[daPairI])
         )
         {
-            // Donor is suitable, add it directly to the cumulative list
+            // Donor has been found and it is suitable, add it directly to the
+            // cumulative suitable list
             cumDAPairs.append(donorAcceptorRegionData[daPairI]);
         }
         else
         {
-            // Donor is not suitable, append it to the unsuitable list
+            // Donor has been found, but it is not suitable, append it to the
+            // unsuitable list
             unsuitableDAPairs.append(donorAcceptorRegionData[daPairI]);
         }
     }
@@ -483,8 +500,10 @@ bool Foam::overlapFringe::updateIteration
         << " (" << suitabilityFrac*100 << "%)"
         << endl;
 
-    // Check whether the criterion has been satisfied
-    if (suitabilityFrac > minGlobalFraction_)
+    // Check whether the two criteria have been satisfied:
+    // 1. There are no invalid donors anymore
+    // 2. Global suitability has been reached
+    if (!invalidDonorFound && (suitabilityFrac > minGlobalFraction_))
     {
         // Append unsuitable donors to the list as well
         cumDAPairs.append(unsuitableDAPairs);
@@ -667,7 +686,8 @@ bool Foam::overlapFringe::updateIteration
     else
     {
         // A sufficient number of suitable donor/acceptors has not been
-        // found. Go through unsuitable donor/acceptor pairs and find a new
+        // found or we still have at least one acceptor with invalid donor.
+        // Go through unsuitable donor/acceptor pairs and find a new
         // batch of acceptors and holes for the next iteration
 
         // Get necessary mesh data

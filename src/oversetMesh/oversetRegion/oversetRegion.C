@@ -1156,26 +1156,24 @@ bool Foam::oversetRegion::updateDonorAcceptors() const
 
             if (pih.hit())
             {
-                // Found a hit, check whether this donor is set or not. If
-                // it is not set, set it no questions asked; if it is set,
-                // check whether this is a better candidate by either
-                // looking whether acceptor point is within donor cell or
-                // taking a closer hit
+                // Note: do not insist on setting a donor just because it has
+                // not yet been found. This can result in donors that are far
+                // away from acceptors, thus invalidating the whole setup. We
+                // will allow that donor remains missing for certain acceptor,
+                // which will be handled in oversetFringe (specifically
+                // overlapFringe::updateIteration). The iterative process will
+                // not stop until all acceptors have not found their donors.
+                // VV, 9/Jan/2018.
 
                 // Get index obtained by octree
                 const label donorCandidateIndex = pih.index();
 
                 if
                 (
-                   !daPair.donorFound()
-                 || mesh_.pointInCellBB
+                    mesh_.pointInCellBB
                     (
                         curP,
                         curDonors[donorCandidateIndex]
-                    )
-                 || (
-                        mag(cc[curDonors[donorCandidateIndex]] - curP)
-                      < mag(daPair.donorPoint() - curP)
                     )
                 )
                 {
@@ -1637,7 +1635,7 @@ Foam::oversetRegion::oversetRegion
         dict.lookupOrDefault<Switch>
         (
             "useLocalBoundBoxes",
-            false
+            true
         )
     )
 {
